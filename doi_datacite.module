@@ -1,0 +1,122 @@
+<?php
+
+/**
+ * @file
+ * Contains the doi_datacite.module.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+
+/**
+ * Implements hook_form_alter().
+ */
+function doi_datacite_form_alter(&$form, FormStateInterface &$form_state, $form_id) {
+  if ($form_id == 'persistent_identifiers_admin_settings') {
+    $config = \Drupal::config('doi_datacite.settings');
+    $form['doi_datacite_api_endpoint'] = [
+      '#type' => 'textfield',
+      '#access' => TRUE,
+      '#title' => t('DataCite API endpoint'),
+      '#default_value' => $config->get('doi_datacite_api_endpoint'),
+      '#description' => t("The DataCite API endpoint URL. Include the trailing /."),
+      '#states' => [
+        'visible' => [
+          ':input[id="persistent_identifiers_minter"]' => ['value' => 'doi_datacite.minter.datacitedois'],
+        ],
+      ],
+    ];
+    $form['doi_datacite_prefix'] = [
+      '#type' => 'textfield',
+      '#access' => TRUE,
+      '#title' => t('DOI prefix'),
+      '#default_value' => $config->get('doi_datacite_prefix'),
+      '#description' => t("Your institution's DOI prefix. Include the trailing /."),
+      '#states' => [
+        'visible' => [
+          ':input[id="persistent_identifiers_minter"]' => ['value' => 'doi_datacite.minter.datacitedois'],
+        ],
+      ],
+    ];
+    $form['doi_datacite_suffix_source'] = [
+      '#type' => 'radios',
+      '#access' => TRUE,
+      '#title' => t('Source of DOI prefix'),
+      '#options' => ['pid' => 'PID', 'uuid' => 'UUID'],
+      '#default_value' => $config->get('doi_datacite_suffix_source'),
+      '#description' => t("Use either the object's node ID or its UUID as the DOI suffix."),
+      '#states' => [
+        'visible' => [
+          ':input[id="persistent_identifiers_minter"]' => ['value' => 'doi_datacite.minter.datacitedois'],
+        ],
+      ],
+    ];
+    $form['doi_datacite_username'] = [
+      '#type' => 'textfield',
+      '#access' => TRUE,
+      '#title' => t('DataCite API username'),
+      '#default_value' => $config->get('doi_datacite_username'),
+      '#description' => t("Your DataCite API username"),
+      '#states' => [
+        'visible' => [
+          ':input[id="persistent_identifiers_minter"]' => ['value' => 'doi_datacite.minter.datacitedois'],
+        ],
+      ],
+    ];
+    $form['doi_datacite_password'] = [
+      '#type' => 'textfield',
+      '#access' => TRUE,
+      '#title' => 'DataCite API password',
+      '#default_value' => $config->get('doi_datacite_password'),
+      '#description' => t("Your DataCite API password"),
+      '#states' => [
+        'visible' => [
+          ':input[id="persistent_identifiers_minter"]' => ['value' => 'doi_datacite.minter.datacitedois'],
+        ],
+      ],
+    ];
+    $form['doi_datacite_combine_creators'] = [
+      '#type' => 'checkbox',
+      '#access' => TRUE,
+      '#title' => t("Combine DC.creator and DC.contributor values"),
+      '#default_value' => $config->get('doi_datacite_combine_creators'),
+      '#description' => t("Check this option if you want to use both the object's DC.creator
+        and DC.contributor values to populate DataCite's reqiured 'creator' element."),
+      '#states' => [
+        'visible' => [
+          ':input[id="persistent_identifiers_minter"]' => ['value' => 'doi_datacite.minter.datacitedois'],
+        ],
+      ],
+    ];
+
+    $form['#submit'][] = 'doi_datacite_submit';
+  }
+}
+
+/**
+ * Submit callback.
+ *
+ * Saves the value of the minter-specific field defined in the implementation
+ * of hook_form_alter() above.
+ *
+ * @param array $form
+ *   The form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form state.
+ */
+function doi_datacite_submit(array &$form, FormStateInterface $form_state) {
+  $endpoint = trim($form_state->getValue('doi_datacite_api_endpoint'));
+  $prefix = trim($form_state->getValue('doi_datacite_prefix'));
+  $suffix_source = $form_state->getValue('doi_datacite_suffix_source');
+  $username = trim($form_state->getValue('doi_datacite_username'));
+  $password = trim($form_state->getValue('doi_datacite_password'));
+  $combine_creator = $form_state->getValue('doi_datacite_combine_creators');
+  $config_factory = \Drupal::configFactory();
+  $config_factory->getEditable('doi_datacite.settings')
+    ->set('doi_datacite_api_endpoint', $endpoint)
+    ->set('doi_datacite_prefix', $prefix)
+    ->set('doi_datacite_suffix_source', $suffix_source)
+    ->set('doi_datacite_username', $username)
+    ->set('doi_datacite_password', $password)
+    ->set('doi_datacite_combine_creators', $combine_creator)
+    ->save();
+}

@@ -1,0 +1,6 @@
+doi_datacite_api_endpoint: 'https://mds.datacite.org/'
+doi_datacite_prefix: '10.5072/'
+doi_datacite_suffix_source: 'uuid'
+doi_datacite_username: 'CISTI.FOO'
+doi_datacite_password: ''
+doi_datacite_combine_creators: true 
