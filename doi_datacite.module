@@ -96,39 +96,47 @@ function doi_datacite_form_alter(&$form, FormStateInterface &$form_state, $form_
  * Implements hook_form_node_form_alter().
  */
 function doi_datacite_form_node_form_alter(&$form, FormStateInterface $form_state) {
-  // DataCite requires the use of this following controlled list of resource types.
-  // Note that the value(s) of this list is not stored anywhere, nor is it validated
-  // by Drupal's Form API as required.
-  $resourcetype_values = [
-    'Audiovisual' => 'Audiovisual',
-    'Collection' => 'Collection',
-    'Dataset' => 'Dataset',
-    'Event' => 'Event',
-    'Image' => 'Image',
-    'InteractiveResource' => 'InteractiveResource',
-    'Model' => 'Model',
-    'PhysicalObject' => 'PhysicalObject',
-    'Service' => 'Service',
-    'Software' => 'Software',
-    'Sound' => 'Sound',
-    'Text' => 'Text',
-    'Workflow' => 'Workflow',
-    'Other' => 'Other',
-  ];
-  $form['doi_datacite_resource_types'] = [
-    '#type' => 'fieldset',
-    '#access' => TRUE,
-    '#title' => t('DataCite-specific options'),
-    '#weight' => 90,
-  ];
-  $form['doi_datacite_resource_types']['doi_datacite_resource_types_values'] = [
-    '#type' => 'checkboxes',
-    '#options' => $resourcetype_values,
-    '#access' => TRUE,
-    '#title' => t("DataCite resource types"),
-    '#description' => t("DataCite metadata requires one or more of these values. " .
-      "When you mint a DataCite DOI for this object, you must select one or more of these resources types."),
-  ];
+  if (\Drupal::currentUser()->hasPermission('mint persistent identifiers')) {
+    // DataCite requires the use of this following controlled list of resource types.
+    // Note that the value(s) of this list is not stored anywhere, nor is it validated
+    // by Drupal's Form API as required.
+    $resourcetype_values = [
+      'Audiovisual' => 'Audiovisual',
+      'Collection' => 'Collection',
+      'Dataset' => 'Dataset',
+      'Event' => 'Event',
+      'Image' => 'Image',
+      'InteractiveResource' => 'InteractiveResource',
+      'Model' => 'Model',
+      'PhysicalObject' => 'PhysicalObject',
+      'Service' => 'Service',
+      'Software' => 'Software',
+      'Sound' => 'Sound',
+      'Text' => 'Text',
+      'Workflow' => 'Workflow',
+      'Other' => 'Other',
+    ];
+    // Only show this form element if the user checks the "Mint DataCite DOI" box.
+    $form['doi_datacite_resource_types'] = [
+      '#type' => 'fieldset',
+      '#access' => TRUE,
+      '#title' => t('DataCite-specific options'),
+      '#weight' => 90,
+      '#states' => [
+        'visible' => [
+          ':input[id="persistent_identifiers_mint_and_persist"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+    $form['doi_datacite_resource_types']['doi_datacite_resource_types_values'] = [
+      '#type' => 'checkboxes',
+      '#options' => $resourcetype_values,
+      '#access' => TRUE,
+      '#title' => t("DataCite resource types"),
+      '#description' => t("DataCite metadata requires one or more of these values. " .
+        "When you mint a DataCite DOI for this object, you must select one or more of these resources types."),
+    ];
+  }
 }
 
 /**

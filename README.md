@@ -18,7 +18,7 @@ Still in very early development.
 
 ## Configuration
 
-1. Visit `/admin/config/persistent_identifiers/settings` for options.
+Visit `/admin/config/persistent_identifiers/settings` for options.
 
 ## Usage
 
@@ -30,7 +30,7 @@ DataCite requires the use of a controlled vocabulary of resource types. This mod
 
 ![DataCite resource types](docs/images/datacite_resource_types.png)
 
-Note that the items selected from this list are not persisted to the node, which means that every time a user mints a new DOI for the node, they must reselect the resource type. This is not optimal, but since DOIs are really only minted once, not storing this data is preferable to adding a field to the content type of store it in.
+This list will appear if the user checks the "Mint DataCite DOI" box. Note that the items selected from this list are not persisted to the node, which means that every time a user mints a new DOI for the node, they must reselect the resource type. This is not optimal, but since DOIs are generally only minted once, not storing this data is preferable to adding a field to the content type of store it in.
 
 ## Current maintainer
 
