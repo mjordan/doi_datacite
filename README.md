@@ -24,6 +24,14 @@ Still in very early development.
 
 See usage section in the Persistent Identifiers module's README.
 
+## Specifying DataCite resource types
+
+DataCite requires the use of a controlled vocabulary of resource types. This module adds this list to the node edit form, e.g.:
+
+![DataCite resource types](docs/images/datacite_resource_types.png)
+
+Note that the items selected from this list are not persisted to the node, which means that every time a user mints a new DOI for the node, they must reselect the resource type. This is not optimal, but since DOIs are really only minted once, not storing this data is preferable to adding a field to the content type of store it in.
+
 ## Current maintainer
 
 * [Mark Jordan](https://github.com/mjordan)
