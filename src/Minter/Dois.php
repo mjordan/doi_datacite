@@ -1,12 +1,13 @@
 <?php
 
-namespace Drupal\sample_minter\Minter;
 namespace Drupal\doi_datacite\Minter;
+
+use Drupal\persistent_identifiers\MinterInterface;
 
 /**
  * DataCite DOI minter.
  */
-class Dois {
+class Dois implements MinterInterface {
 
   /**
    * Returns the minter's name.
@@ -53,6 +54,8 @@ class Dois {
       \Drupal::logger('doi_datacite')->debug(var_export(array_values($datacite_resource_types), true), []);
     }
     return 'Please stand by.... the DataCite DOI module is still under development.';
+
+    // @todo: Generate DataCite XML (but see if JSON is allowed), for POSTing to DataCite API.
   }
 
 }
