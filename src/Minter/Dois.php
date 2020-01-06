@@ -48,14 +48,32 @@ class Dois implements MinterInterface {
     $namespace = $config->get('doi_datacite_username');
     $namespace = $config->get('doi_datacite_password');
     $namespace = $config->get('doi_datacite_combine_creators');
+
     // For $extra coming from node edit form.
     if (is_object($extra) && method_exists($extra, 'getValue')) {
       $datacite_resource_types = $extra->getValue('doi_datacite_resource_types_values', []);
       \Drupal::logger('doi_datacite')->debug(var_export(array_values($datacite_resource_types), true), []);
     }
-    return 'Please stand by.... the DataCite DOI module is still under development.';
 
-    // @todo: Generate DataCite XML (but see if JSON is allowed), for POSTing to DataCite API.
+    $doi = "PleseStandBy-TheDataCiteDOIModuleIsStillUnderDevelopment";
+
+    // Generate DataCite XML for POSTing to DataCite API.
+    $templated = [
+      '#theme' => 'doi_datacite_metadata',
+      '#title'  => $entity->getTitle(),
+      '#doi'  => $doi,
+      // '#creators'  => $doi,
+      '#publisher'  => $doi,
+      '#publication_year'  => $doi,
+      // '#subjects'  => $doi,
+      // '#languages'  => $doi,
+      '#resource_type'  => $doi,
+      // '#descriptions'  => $doi,
+    ];
+    $datacite_xml = \Drupal::service('renderer')->render($templated);
+    \Drupal::logger('foo')->debug(t("%xml", ["%xml" => $datacite_xml]));
+
+    return $doi;
   }
 
 }

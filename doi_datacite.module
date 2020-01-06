@@ -6,6 +6,7 @@
  */
 
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\node\Entity\Node;
 
 /**
  * Implements hook_form_alter().
@@ -138,6 +139,7 @@ function doi_datacite_form_node_form_alter(&$form, FormStateInterface $form_stat
         '#description' => t("DataCite metadata requires one or more of these values. " .
           "When you mint a DataCite DOI for this object, you must select one or more of these resources types."),
       ];
+      $form['#validate'][] = 'doi_datacite_check_for_required_datacite_elements';
     }
   }
 }
@@ -172,4 +174,62 @@ function doi_datacite_submit(array &$form, FormStateInterface $form_state) {
       ->set('doi_datacite_combine_creators', $combine_creator)
       ->save();
   }
+}
+
+/**
+ * Form validation callback.
+ *
+ * Checks to see if the elements required by DataCite are populated.
+ *
+ * @param array $form
+ *   The form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form state.
+ */
+function doi_datacite_check_for_required_datacite_elements(array $form, FormStateInterface &$form_state) {
+  if (\Drupal::currentUser()->hasPermission('mint persistent identifiers')) {
+    // We only want to validate these elements if the "Mint DataCite DOI" checkbox is checked.
+    if ($form_state->getValue('mint_and_persist') == 1) {
+      $minter = Drupal::config('persistent_identifiers.settings')->get('persistent_identifiers_minter');
+      if ($minter == 'doi_datacite.minter.datacitedois') {
+        if ($form_state->getValue('field_edtf_date')) {
+          $form_state->setErrorByName('field_edtf_date', t('Test passed'));
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function doi_datacite_theme() {
+  return [
+    'doi_datacite_metadata' => [
+      'variables' => [
+        'doi' => NULL,
+        'creators' => NULL,
+        'title' => NULL,
+        'publisher' => NULL,
+        'publication_year' => NULL,
+        'subjects' => NULL,
+        'languages' => NULL,
+        'resource_type' => NULL,
+        'descriptions' => NULL,
+      ],
+    ],
+  ];
+}
+
+/**
+ * Default preprocessor function for the doi_datacite_metadata hook.
+ */
+function template_preprocess_doi_datacite_metadata(&$variables) {
+  $current_path = \Drupal::service('path.current')->getPath();
+  $path_args = explode('/', ltrim($current_path, '/'));
+  // if (count($path_args) >= 3 && $path_args[0] == 'node' && $path_args[2] == 'edit') {
+    // $node = Node::load($path_args[1]);
+    // $variables['title'] = strtoupper($variables['title']);
+  // }
+  $variables['title'] = strtoupper($variables['title']);
 }
