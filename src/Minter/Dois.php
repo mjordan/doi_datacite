@@ -42,36 +42,29 @@ class Dois implements MinterInterface {
    */
   public function mint($entity, $extra = NULL) {
     $config = \Drupal::config('doi_datacite.settings');
-    $namespace = $config->get('doi_datacite_api_endpoint');
-    $namespace = $config->get('doi_datacite_prefix');
-    $namespace = $config->get('doi_datacite_suffix_source');
-    $namespace = $config->get('doi_datacite_username');
-    $namespace = $config->get('doi_datacite_password');
-    $namespace = $config->get('doi_datacite_combine_creators');
-
-    // For $extra coming from node edit form.
-    if (is_object($extra) && method_exists($extra, 'getValue')) {
-      $datacite_resource_types = $extra->getValue('doi_datacite_resource_types_values', []);
-      \Drupal::logger('doi_datacite')->debug(var_export(array_values($datacite_resource_types), true), []);
-    }
+    $api_endpoint = $config->get('doi_datacite_api_endpoint');
+    $doi_prefix = $config->get('doi_datacite_prefix');
+    $doi_suffix_source = $config->get('doi_datacite_suffix_source');
+    $api_username = $config->get('doi_datacite_username');
+    $api_password = $config->get('doi_datacite_password');
+    $combine_creators = $config->get('doi_datacite_combine_creators');
 
     $doi = "PleseStandBy-TheDataCiteDOIModuleIsStillUnderDevelopment";
 
     // Generate DataCite XML for POSTing to DataCite API.
     $templated = [
       '#theme' => 'doi_datacite_metadata',
-      '#title'  => $entity->getTitle(),
+      '#entity'  => $entity,
       '#doi'  => $doi,
-      // '#creators'  => $doi,
-      '#publisher'  => $doi,
-      '#publication_year'  => $doi,
-      // '#subjects'  => $doi,
-      // '#languages'  => $doi,
-      '#resource_type'  => $doi,
-      // '#descriptions'  => $doi,
+      '#extra' => $extra,
     ];
+
     $datacite_xml = \Drupal::service('renderer')->render($templated);
-    \Drupal::logger('foo')->debug(t("%xml", ["%xml" => $datacite_xml]));
+
+    // Used only during development.
+    // error_log($datacite_xml . "\n", 3, '/home/vagrant/debug.log');
+
+    // @todo: POST the XML to the DataCite API, etc.
 
     return $doi;
   }

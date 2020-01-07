@@ -103,7 +103,7 @@ function doi_datacite_form_node_form_alter(&$form, FormStateInterface $form_stat
       // DataCite requires the use of this following controlled list of resource types.
       // Note that the value(s) of this list is not stored anywhere, nor is it validated
       // by Drupal's Form API as required.
-      $resourcetype_values = [
+      $resource_type_values = [
         'Audiovisual' => 'Audiovisual',
         'Collection' => 'Collection',
         'Dataset' => 'Dataset',
@@ -131,13 +131,13 @@ function doi_datacite_form_node_form_alter(&$form, FormStateInterface $form_stat
           ],
         ],
       ];
-      $form['doi_datacite_resource_types']['doi_datacite_resource_types_values'] = [
-        '#type' => 'checkboxes',
-        '#options' => $resourcetype_values,
+      $form['doi_datacite_resource_types']['doi_datacite_resource_type'] = [
+        '#type' => 'radios',
+        '#options' => $resource_type_values,
         '#access' => TRUE,
         '#title' => t("DataCite resource types"),
-        '#description' => t("DataCite metadata requires one or more of these values. " .
-          "When you mint a DataCite DOI for this object, you must select one or more of these resources types."),
+        '#description' => t("Metadata submitted to DataCite requires one of these " .
+	"resource types."),
       ];
       $form['#validate'][] = 'doi_datacite_check_for_required_datacite_elements';
     }
@@ -192,9 +192,14 @@ function doi_datacite_check_for_required_datacite_elements(array $form, FormStat
     if ($form_state->getValue('mint_and_persist') == 1) {
       $minter = Drupal::config('persistent_identifiers.settings')->get('persistent_identifiers_minter');
       if ($minter == 'doi_datacite.minter.datacitedois') {
-        if ($form_state->getValue('field_edtf_date')) {
-          $form_state->setErrorByName('field_edtf_date', t('Test passed'));
-        }
+	// DataCite resource type.
+        if (empty($form_state->getValue('doi_datacite_resource_type'))) {
+          $form_state->setErrorByName('doi_datacite_resource_type', t('You must choose a DataCite resource type.'));
+	}
+	// @todo: These are required by DataCite.
+	// Publication date
+	// At least one creator
+	// Publisher
       }
     }
   }
@@ -207,15 +212,9 @@ function doi_datacite_theme() {
   return [
     'doi_datacite_metadata' => [
       'variables' => [
+        'entity' => NULL,
         'doi' => NULL,
-        'creators' => NULL,
-        'title' => NULL,
-        'publisher' => NULL,
-        'publication_year' => NULL,
-        'subjects' => NULL,
-        'languages' => NULL,
-        'resource_type' => NULL,
-        'descriptions' => NULL,
+        'extra' => NULL,
       ],
     ],
   ];
@@ -225,11 +224,25 @@ function doi_datacite_theme() {
  * Default preprocessor function for the doi_datacite_metadata hook.
  */
 function template_preprocess_doi_datacite_metadata(&$variables) {
-  $current_path = \Drupal::service('path.current')->getPath();
-  $path_args = explode('/', ltrim($current_path, '/'));
-  // if (count($path_args) >= 3 && $path_args[0] == 'node' && $path_args[2] == 'edit') {
-    // $node = Node::load($path_args[1]);
-    // $variables['title'] = strtoupper($variables['title']);
-  // }
-  $variables['title'] = strtoupper($variables['title']);
+  $entity = $variables['entity'];
+  // Don't need this anymore.
+  unset($variables['entity']);
+
+  $variables['title'] = $entity->getTitle();
+  $descriptions = $entity->get('field_description')->getValue();
+  $variables['description'] = $descriptions[0];
+
+  // Perform these checks when $extra comes from node edit form.
+  if (is_object($variables['extra']) && method_exists($variables['extra'], 'getValue')) {
+    $variables['resource_type'] = $variables['extra']->getValue('doi_datacite_resource_type');
+  }
+
+  /*
+   * @todo: Populate these template variables from node field data.
+  $variables['creators'] =
+  $variables['publisher'] =
+  $variables['publication_year'] =
+  $variables['subjects'] =
+  $variables['languages'] =
+  */
 }
