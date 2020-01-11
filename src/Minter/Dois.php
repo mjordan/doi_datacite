@@ -56,13 +56,29 @@ class Dois implements MinterInterface {
       '#theme' => 'doi_datacite_metadata',
       '#entity'  => $entity,
       '#doi'  => $doi,
-      '#extra' => $extra,
+      // '#extra' => $extra,
     ];
 
-    $datacite_xml = \Drupal::service('renderer')->render($templated);
+    // We do these type checks in the template preprocessor, but the renderer
+    // service uses a different render method depending on the type of the
+    // $extra variable.
+    if (!is_null($extra)) {
+      // Check to see if $extra is from the edit form.
+      if (is_object($variables['extra']) && method_exists($variables['extra'], 'getValue')) {
+        $templated['#extra'] = $extra;
+        $datacite_xml = \Drupal::service('renderer')->render($templated);
+      }
+
+      // Check to see if $extra is JSON (i.e., it's from a Drush command).
+      $extra_array = json_decode($extra, TRUE);
+      if (json_last_error() === JSON_ERROR_NONE) {
+        $templated['#extra'] = $extra;
+        $datacite_xml = \Drupal::service('renderer')->renderRoot($templated);
+      }
+    }
 
     // Used only during development.
-    // error_log($datacite_xml . "\n", 3, '/home/vagrant/debug.log');
+    error_log($datacite_xml . "\n", 3, '/home/vagrant/debug.log');
 
     // @todo: POST the XML to the DataCite API, etc.
 

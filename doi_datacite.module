@@ -232,10 +232,14 @@ function template_preprocess_doi_datacite_metadata(&$variables) {
   $descriptions = $entity->get('field_description')->getValue();
   $variables['description'] = $descriptions[0];
 
-  // Perform these checks when $extra comes from node edit form.
+  // Perform these checks when $extra comes from node edit form. Preprocessors
+  // should perform appropriate checks to determine if $exta is coming from
+  // a Drush, depending on what form $extra takes (associative array, etc.).
   if (is_object($variables['extra']) && method_exists($variables['extra'], 'getValue')) {
     $variables['resource_type'] = $variables['extra']->getValue('doi_datacite_resource_type');
   }
+
+  // var_export($variables['extra']);
 
   /*
    * @todo: Populate these template variables from node field data.
