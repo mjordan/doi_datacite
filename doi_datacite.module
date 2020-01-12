@@ -221,25 +221,31 @@ function doi_datacite_theme() {
 }
 
 /**
- * Default preprocessor function for the doi_datacite_metadata hook.
+ * Default preprocessor function for the doi_datacite_metadata template.
  */
 function template_preprocess_doi_datacite_metadata(&$variables) {
   $entity = $variables['entity'];
   // Don't need this anymore.
   unset($variables['entity']);
 
+  error_log("From preprocessor: " . $variables['extra'] . "\n", 3, '/home/vagrant/debug.log');
+
   $variables['title'] = $entity->getTitle();
   $descriptions = $entity->get('field_description')->getValue();
   $variables['description'] = $descriptions[0];
 
-  // Perform these checks when $extra comes from node edit form. Preprocessors
-  // should perform appropriate checks to determine if $exta is coming from
-  // a Drush, depending on what form $extra takes (associative array, etc.).
-  if (is_object($variables['extra']) && method_exists($variables['extra'], 'getValue')) {
-    $variables['resource_type'] = $variables['extra']->getValue('doi_datacite_resource_type');
+  // Preprocessors need to determine whether $extra came from the node edit
+  // form or from Drush since the data types will differ (JSON string from
+  // Drush, Drupal\Core\Form\FormState if from form).
+  if (is_string($extra) && strlen($extra)) {
+   //  $extra_array = json_decode($extra, TRUE);
+    // if (json_last_error() === JSON_ERROR_NONE && array_key_exists('resource_type', $extra_array)) {
+      $variables['resource_type'] = $extra;
+    // }
   }
-
-  // var_export($variables['extra']);
+  // if (is_object($extra) && method_exists($extra, 'getValue')) {
+    // $variables['resource_type'] = $extra->getValue('doi_datacite_resource_type');
+  // }
 
   /*
    * @todo: Populate these template variables from node field data.
