@@ -23,6 +23,28 @@ class Dois implements MinterInterface {
   }
 
   /**
+   *
+   */
+  public function getResourceTypes() {
+    return [
+      'Audiovisual' => 'Audiovisual',
+      'Collection' => 'Collection',
+      'Dataset' => 'Dataset',
+      'Event' => 'Event',
+      'Image' => 'Image',
+      'InteractiveResource' => 'InteractiveResource',
+      'Model' => 'Model',
+      'PhysicalObject' => 'PhysicalObject',
+      'Service' => 'Service',
+      'Software' => 'Software',
+      'Sound' => 'Sound',
+      'Text' => 'Text',
+      'Workflow' => 'Workflow',
+      'Other' => 'Other',
+    ];
+  }
+
+  /**
    * Returns the minter's name.
    *
    * @return string
@@ -64,27 +86,21 @@ class Dois implements MinterInterface {
       '#doi'  => $doi,
     ];
 
-    // The renderer service uses a different render method depending on
-    // the type of the $extra variable.
     if (!is_null($extra)) {
-      // Check to see if $extra is from the edit form (i.e., it's
-      // Drupal\Core\Form\FormState).
+      // Check to see if $extra is from the node edit form (i.e., it's
+      // a Drupal\Core\Form\FormState).
       if (is_object($extra) && method_exists($extra, 'getValue')) {
         $templated['#extra'] = $extra->getValue('doi_datacite_resource_type');
-        $datacite_xml = \Drupal::service('renderer')->render($templated);
+        // $datacite_xml = \Drupal::service('renderer')->render($templated);
       }
 
-      // Check to see if $extra is from a Drush command (i.e., it's JSON).
-      // We check to see $extra is valide JSON.
-      $extra_array = @json_decode($extra, TRUE);
-      if (json_last_error() === JSON_ERROR_NONE) {
-        $templated['#extra'] = $extra_array['resource_type'];
-        error_log("From minter: " . $templated['#extra'] . "\n", 3, '/home/vagrant/debug.log');
-        $datacite_xml = \Drupal::service('renderer')->renderPlain($templated);
+      // Check to see if $extra is from the Views Bulk Operations Action.
+      if (is_array($extra)) {
+        // error_log("From action via minter: " . var_export($extra, true) . "\n", 3, '/home/vagrant/debug.log');
+        $templated['#extra'] = $extra['doi_datacite_resource_type'];
+        // $datacite_xml = \Drupal::service('renderer')->render($templated);
       }
-      else {
-        // @todo: do something if the JSON is invalid.
-      }
+      $datacite_xml = \Drupal::service('renderer')->render($templated);
     }
 
     $success = $this->postToApi($doi, $datacite_xml);

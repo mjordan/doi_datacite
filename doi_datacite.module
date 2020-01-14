@@ -100,25 +100,11 @@ function doi_datacite_form_node_form_alter(&$form, FormStateInterface $form_stat
   if (\Drupal::currentUser()->hasPermission('mint persistent identifiers')) {
     $minter = Drupal::config('persistent_identifiers.settings')->get('persistent_identifiers_minter');
     if ($minter == 'doi_datacite.minter.datacitedois') {
+      $minter_service = \Drupal::service('doi_datacite.minter.datacitedois');
       // DataCite requires the use of this following controlled list of resource types.
       // Note that the value(s) of this list is not stored anywhere, nor is it validated
       // by Drupal's Form API as required.
-      $resource_type_values = [
-        'Audiovisual' => 'Audiovisual',
-        'Collection' => 'Collection',
-        'Dataset' => 'Dataset',
-        'Event' => 'Event',
-        'Image' => 'Image',
-        'InteractiveResource' => 'InteractiveResource',
-        'Model' => 'Model',
-        'PhysicalObject' => 'PhysicalObject',
-        'Service' => 'Service',
-        'Software' => 'Software',
-        'Sound' => 'Sound',
-        'Text' => 'Text',
-        'Workflow' => 'Workflow',
-        'Other' => 'Other',
-      ];
+      $resource_type_values = $minter_service->getResourceTypes();
       // Only show this form element if the user checks the "Mint DataCite DOI" box.
       $form['doi_datacite_resource_types'] = [
         '#type' => 'fieldset',
@@ -228,24 +214,15 @@ function template_preprocess_doi_datacite_metadata(&$variables) {
   // Don't need this anymore.
   unset($variables['entity']);
 
-  error_log("From preprocessor: " . $variables['extra'] . "\n", 3, '/home/vagrant/debug.log');
+  // error_log("From preprocessor: " . $variables['extra'] . "\n", 3, '/home/vagrant/debug.log');
 
   $variables['title'] = $entity->getTitle();
   $descriptions = $entity->get('field_description')->getValue();
   $variables['description'] = $descriptions[0];
 
-  // Preprocessors need to determine whether $extra came from the node edit
-  // form or from Drush since the data types will differ (JSON string from
-  // Drush, Drupal\Core\Form\FormState if from form).
   if (is_string($extra) && strlen($extra)) {
-   //  $extra_array = json_decode($extra, TRUE);
-    // if (json_last_error() === JSON_ERROR_NONE && array_key_exists('resource_type', $extra_array)) {
-      $variables['resource_type'] = $extra;
-    // }
+    $variables['resource_type'] = $variables['extra'];
   }
-  // if (is_object($extra) && method_exists($extra, 'getValue')) {
-    // $variables['resource_type'] = $extra->getValue('doi_datacite_resource_type');
-  // }
 
   /*
    * @todo: Populate these template variables from node field data.
