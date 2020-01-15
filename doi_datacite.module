@@ -42,9 +42,10 @@ function doi_datacite_form_alter(&$form, FormStateInterface &$form_state, $form_
       '#type' => 'radios',
       '#access' => TRUE,
       '#title' => t('Source of DOI prefix'),
-      '#options' => ['pid' => 'PID', 'uuid' => 'UUID'],
+      '#options' => ['id' => 'Node ID', 'uuid' => 'UUID'],
       '#default_value' => $config->get('doi_datacite_suffix_source'),
-      '#description' => t("Use either the object's node ID or its UUID as the DOI suffix."),
+      '#description' => t("Use either the object's node ID or its UUID as the DOI suffix. " .
+        "UUIDs are longer but are guaranteed to be unique; node IDs may not be unique within a DOI prefix."),
       '#states' => [
         'visible' => [
           ':input[id="persistent_identifiers_minter"]' => ['value' => 'doi_datacite.minter.datacitedois'],
@@ -98,18 +99,15 @@ function doi_datacite_form_alter(&$form, FormStateInterface &$form_state, $form_
  */
 function doi_datacite_form_node_form_alter(&$form, FormStateInterface $form_state) {
   if (\Drupal::currentUser()->hasPermission('mint persistent identifiers')) {
-    $minter = Drupal::config('persistent_identifiers.settings')->get('persistent_identifiers_minter');
-    if ($minter == 'doi_datacite.minter.datacitedois') {
+    $minter_id = Drupal::config('persistent_identifiers.settings')->get('persistent_identifiers_minter');
+    if ($minter_id == 'doi_datacite.minter.datacitedois') {
       $minter_service = \Drupal::service('doi_datacite.minter.datacitedois');
       // DataCite requires the use of this following controlled list of resource types.
-      // Note that the value(s) of this list is not stored anywhere, nor is it validated
-      // by Drupal's Form API as required.
       $resource_type_values = $minter_service->getResourceTypes();
       // Only show this form element if the user checks the "Mint DataCite DOI" box.
-      $form['doi_datacite_resource_types'] = [
+      $form['doi_datacite_required_fields'] = [
         '#type' => 'fieldset',
-        '#access' => TRUE,
-        '#title' => t('DataCite-specific options'),
+        '#title' => t('DataCite-specific metadata'),
         '#weight' => 90,
         '#states' => [
           'visible' => [
@@ -117,14 +115,31 @@ function doi_datacite_form_node_form_alter(&$form, FormStateInterface $form_stat
           ],
         ],
       ];
-      $form['doi_datacite_resource_types']['doi_datacite_resource_type'] = [
+      $form['doi_datacite_required_fields']['required_note'] = [
+        '#markup' => t('Note: All of these fields are required by DataCite.'),
+      ];     
+      $form['doi_datacite_required_fields']['doi_datacite_resource_type'] = [
         '#type' => 'radios',
         '#options' => $resource_type_values,
-        '#access' => TRUE,
         '#title' => t("DataCite resource types"),
         '#description' => t("Metadata submitted to DataCite requires one of these " .
 	"resource types."),
       ];
+      $form['doi_datacite_required_fields']['doi_datacite_creator'] = [
+        '#type' => 'textfield',
+        '#title' => t('Creator'),
+        '#description' => t("Separate repeated values with semicolons."),
+      ];
+      $form['doi_datacite_required_fields']['doi_datacite_publication_year'] = [
+        '#title' => t('Publication year'),
+        '#type' => 'textfield',
+        '#description' => t("Must be in YYYY format."),
+      ];
+      $form['doi_datacite_required_fields']['doi_datacite_publisher'] = [
+        '#title' => t('Publisher'),
+        '#type' => 'textfield',
+      ];
+
       $form['#validate'][] = 'doi_datacite_check_for_required_datacite_elements';
     }
   }
@@ -182,10 +197,22 @@ function doi_datacite_check_for_required_datacite_elements(array $form, FormStat
         if (empty($form_state->getValue('doi_datacite_resource_type'))) {
           $form_state->setErrorByName('doi_datacite_resource_type', t('You must choose a DataCite resource type.'));
 	}
-	// @todo: These are required by DataCite.
-	// Publication date
-	// At least one creator
-	// Publisher
+	// DataCite creator.
+        if (empty($form_state->getValue('doi_datacite_creator'))) {
+          $form_state->setErrorByName('doi_datacite_creator', t('You must enter a value in the DataCite Creator field.'));
+	}
+	// DataCite publication year.
+        if (empty($form_state->getValue('doi_datacite_publication_year'))) {
+	  $form_state->setErrorByName('doi_datacite_publication_year', t('You must enter a value in the DataCite ' .
+          'Publication year field, in YYYY format.'));
+	}
+	if (!preg_match('/^\d\d\d\d$/', $form_state->getValue('doi_datacite_publication_year'))) {
+	  $form_state->setErrorByName('doi_datacite_publication_year', t('The date must be in YYYY format'));
+        }
+	// DataCite publisher.
+        if (empty($form_state->getValue('doi_datacite_publisher'))) {
+          $form_state->setErrorByName('doi_datacite_publisher', t('You must enter a value in the DataCite Publisher field.'));
+	}
       }
     }
   }
@@ -200,7 +227,10 @@ function doi_datacite_theme() {
       'variables' => [
         'entity' => NULL,
         'doi' => NULL,
-        'extra' => NULL,
+        'resource_type' => NULL,
+        'creator' => NULL,
+        'publisher' => NULL,
+        'publication_year' => NULL,
       ],
     ],
   ];
@@ -219,10 +249,6 @@ function template_preprocess_doi_datacite_metadata(&$variables) {
   $variables['title'] = $entity->getTitle();
   $descriptions = $entity->get('field_description')->getValue();
   $variables['description'] = $descriptions[0];
-
-  if (is_string($extra) && strlen($extra)) {
-    $variables['resource_type'] = $variables['extra'];
-  }
 
   /*
    * @todo: Populate these template variables from node field data.

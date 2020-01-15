@@ -34,7 +34,7 @@ class MintDataCiteDoiAction extends ViewsBulkOperationsActionBase implements Vie
     // The values saved in this action's configuration form are in $this->configuration.
     $identifier = $minter->mint($entity, $this->configuration);
     $persister->persist($entity, $identifier);
-    $this->messenger()->addMessage($entity->label() . ' - ' . $entity->language()->getId() . ' - ' . $entity->id());
+    $this->messenger()->addMessage('"' . $entity->label() . '" assigned the DOI ' . $identifier);
   }
 
   /**
@@ -66,26 +66,25 @@ class MintDataCiteDoiAction extends ViewsBulkOperationsActionBase implements Vie
       '#description' => t("Metadata submitted to DataCite requires one of these " .
       "resource types."),
     ];
-    $form['doi_datacite_creators'] = [
-      '#title' => t('Creators'),
+    $form['doi_datacite_creator'] = [
+      '#title' => t('Creator'),
       '#type' => 'textfield',
       '#required' => TRUE,
-      '#description' => t("Separate repeated values with semicolons. This will " .
-        "only be applied if node has no creators."),
+      '#description' => t("Separate repeated values with semicolons. " .
+        "This will only be used if node has no creators."),
     ];
-    $form['doi_datacite_date'] = [
-      '#title' => t('Publication date'),
+    $form['doi_datacite_publication_year'] = [
+      '#title' => t('Publication year'),
       '#type' => 'textfield',
       '#required' => TRUE,
-      '#description' => t("Must be in YYYY format. This will only be applied " .
-        "if a node has no publication date."),
+      '#description' => t("Must be in YYYY format. Note that this value is not validated " .
+        "so double check it. This will only be used if a node has no publication date."),
     ];
     $form['doi_datacite_publisher'] = [
       '#title' => t('Publisher'),
       '#type' => 'textfield',
       '#required' => TRUE,
-      '#description' => t("This will only be applied " .
-        "if a node has no publication date."),
+      '#description' => t("This will only be used if a node has no publisher."),
     ];
     return $form;
   }
@@ -99,8 +98,8 @@ class MintDataCiteDoiAction extends ViewsBulkOperationsActionBase implements Vie
    *   The form state object.
    */
   public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
-    $this->configuration['doi_datacite_creators'] = $form_state->getValue('doi_datacite_creators');
-    $this->configuration['doi_datacite_date'] = $form_state->getValue('doi_datacite_date');
+    $this->configuration['doi_datacite_creator'] = $form_state->getValue('doi_datacite_creator');
+    $this->configuration['doi_datacite_publication_year'] = $form_state->getValue('doi_datacite_publication_year');
     $this->configuration['doi_datacite_publisher'] = $form_state->getValue('doi_datacite_publisher');
     $this->configuration['doi_datacite_resource_type'] = $form_state->getValue('doi_datacite_resource_type');
   }
@@ -109,11 +108,13 @@ class MintDataCiteDoiAction extends ViewsBulkOperationsActionBase implements Vie
    * {@inheritdoc}
    */
   public function access($object, AccountInterface $account = NULL, $return_as_object = FALSE) {
+    /*
     if ($object->getEntityType() === 'node') {
       $access = $object->access('update', $account, TRUE)
         ->andIf($object->status->access('edit', $account, TRUE));
       return $return_as_object ? $access : $access->isAllowed();
     }
+    */
 
     return TRUE;
   }
