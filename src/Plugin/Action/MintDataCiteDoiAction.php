@@ -24,10 +24,6 @@ class MintDataCiteDoiAction extends ViewsBulkOperationsActionBase implements Vie
    * {@inheritdoc}
    */
   public function execute($entity = NULL) {
-    // Do some processing..
-    // ...
-    // $this->messenger()->addMessage($entity->label() . ' - ' . $entity->language()->getId() . ' - ' . $entity->id());
-    // return sprintf('Example action (configuration: %s)', print_r($this->configuration, TRUE));
     $minter = \Drupal::service('doi_datacite.minter.datacitedois');
     $persister_id = \Drupal::config('persistent_identifiers.settings')->get('persistent_identifiers_persister');
     $persister = \Drupal::service($persister_id);
@@ -108,10 +104,12 @@ class MintDataCiteDoiAction extends ViewsBulkOperationsActionBase implements Vie
    * {@inheritdoc}
    */
   public function access($object, AccountInterface $account = NULL, $return_as_object = FALSE) {
-    /*
+    /* 
+     * @todo: 'hasPermision' call is resulting in an access denied when I execute the action.
     if ($object->getEntityType() === 'node') {
       $access = $object->access('update', $account, TRUE)
-        ->andIf($object->status->access('edit', $account, TRUE));
+        ->andIf($object->status->access('edit', $account, TRUE))
+        ->andIf(\Drupal::currentUser()->hasPermission('mint persistent identifiers'));
       return $return_as_object ? $access : $access->isAllowed();
     }
     */

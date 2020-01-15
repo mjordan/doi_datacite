@@ -19,7 +19,6 @@ class Dois implements MinterInterface {
     $this->doi_suffix_source = $config->get('doi_datacite_suffix_source');
     $this->api_username = $config->get('doi_datacite_username');
     $this->api_password = $config->get('doi_datacite_password');
-    $this->combine_creators = $config->get('doi_datacite_combine_creators');
   }
 
   /**
@@ -73,7 +72,7 @@ class Dois implements MinterInterface {
    *   Extra data the minter needs, for example from the node edit form.
    *
    * @return string
-   *   The DOI.
+   *   The DOI that will be saved in the persister's designated field.
    */
   public function mint($entity, $extra = NULL) {
     // The resource's metadata must be registered via the DataCite MDS API
@@ -82,18 +81,20 @@ class Dois implements MinterInterface {
     //
     // We will create a DOI using either the node's ID or its UUID,
     // depending on the value of this module's config setting doi_datacite_suffix_source.
-    // Then prepend our DOI prefix. This is inserted into the DataCite
-    // metadata XML. 
-    // 
-    // Once we have successfully POSTed the XML to the API, we POST the URL
-    // to the API. See https://github.com/SFULibrary/islandora_doi_framework/blob/7.x/modules/islandora_doi_datacite/includes/utilities.inc#L30
-    // for an example.
+    // We also provide the option to allow DataCite to autogenerate suffixes.
+    // Docs are at https://support.datacite.org/docs/api-create-dois.
     
     if ($this->doi_suffix_source == 'id') {
       $suffix = $entity->id();
     }
     if ($this->doi_suffix_source == 'uuid') {
       $suffix = $entity->Uuid();
+    }
+    // @question: what do we return to the persister?
+    // We'll probably need to parse the auto-assigned DOI out of the request response.
+    // See "Auto-generated DOI's" in https://support.datacite.org/docs/api-create-dois.
+    if ($this->doi_suffix_source == 'auto') {
+      $suffix = '';
     }
     $doi = $this->doi_prefix . $suffix;
 
@@ -111,7 +112,8 @@ class Dois implements MinterInterface {
         $templated['#resource_type'] = $extra->getValue('doi_datacite_resource_type');
       }
 
-      // Check to see if $extra is from the Views Bulk Operations Action.
+      // Check to see if $extra is from the Views Bulk Operations Action (i.e.,
+      // it's an array).
       if (is_array($extra)) {
         // error_log("From action via minter: " . var_export($extra, true) . "\n", 3, '/home/vagrant/debug.log');
         $templated['#resource_type'] = $extra['doi_datacite_resource_type'];
@@ -143,5 +145,19 @@ class Dois implements MinterInterface {
     // Used only during development.
     error_log($datacite_xml . "\n", 3, '/home/vagrant/debug.log');
     return TRUE;
+
+    // Placeholder code - hopefully we'll be able to use JSON and not XML.
+    // See https://support.datacite.org/docs/api-create-dois
+    $response = \Drupal::httpClient()
+      ->post($this->api_endpoint, [
+        'auth' => [$this->api_username, $this->api_password],
+        'body' => $datacite_json,
+        'http_errors' => FALSE,
+        'headers' => [
+           'Content-Type' => 'application/vnd.api+json',
+        ],
+    ]);
+    $response->getBody()->getContents();
+
   }
 }
