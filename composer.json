@@ -1,9 +1,9 @@
 {
-  "name": "mjordan/persistent_identifiers",
-  "description": "Drupal 8 Module that provides a generalized framework for minting and persisting persistent identifiers (DOIs, ARKs, etc.) for Drupal Entities.",
+  "name": "mjordan/doi_datacite",
+  "description": "Drupal 8 Module that mints DOIs from DataCite via the Persistent Identifiers module.",
   "type": "drupal-module",
   "keywords": ["Drupal"],
-  "homepage": "https://github.com/mjordan/persistent_identifiers",
+  "homepage": "https://github.com/mjordan/doi_datacite",
   "license": "GPL-2.0+",
   "authors": [
     {
