@@ -131,7 +131,7 @@ class Dois implements MinterInterface {
 
 
   /**
-   * POSTs the XML to the DataCite API.
+   * POSTs DataCite REST API.
    *
    * @param string $doi
    *   The DOI.
@@ -142,12 +142,33 @@ class Dois implements MinterInterface {
    *   TRUE if successful, FALSE if not.
    */
   public function postToApi($doi, $datacite_xml) {
-    // Used only during development.
-    error_log($datacite_xml . "\n", 3, '/home/vagrant/debug.log');
-    return TRUE;
+    /*
+     This is the simplest JSON we can post to create a DOI.
+{
+  "data": {
+    "id": "10.80484/9e99eef6-07e5-4726-b59b-0008da534aa3",
+    "type": "dois",
+    "attributes": {
+      "event": "publish",
+      "doi": "10.80484/8e99eef6-07e5-4726-b59b-0008da534aa3",
+      "creators": [{
+        "name": "Jordan, Mark J."
+      }],
+      "titles": [{
+        "title": "SFU Library website"
+      }],
+      "publisher": "SFU Library",
+      "publicationYear": 2020,
+      "types": {
+        "resourceTypeGeneral": "Text"
+      },
+      "url": "https://www.lib.sfu.ca",
+      "schemaVersion": "http://datacite.org/schema/kernel-4"
+    }
+  }
+}
+     */
 
-    // Placeholder code - hopefully we'll be able to use JSON and not XML.
-    // See https://support.datacite.org/docs/api-create-dois
     $response = \Drupal::httpClient()
       ->post($this->api_endpoint, [
         'auth' => [$this->api_username, $this->api_password],
@@ -159,5 +180,7 @@ class Dois implements MinterInterface {
     ]);
     $response->getBody()->getContents();
 
+    // DataCite's API returns a 404 when the user credentials or prefix are wrong, with the following body:
+    // {"errors":[{"status":"404","title":"The resource you are looking for doesn't exist."}]}
   }
 }
