@@ -3,6 +3,7 @@
 namespace Drupal\doi_datacite\Minter;
 
 use Drupal\persistent_identifiers\MinterInterface;
+use Drupal\Core\Url;
 
 /**
  * DataCite DOI minter.
@@ -69,79 +70,90 @@ class Dois implements MinterInterface {
    * @param object $entity
    *   The node, etc.
    * @param mixed $extra
-   *   Extra data the minter needs, for example from the node edit form.
+   *   The node edit form state or data form Views Bulk Operations action.
    *
    * @return string
    *   The DOI that will be saved in the persister's designated field.
    */
   public function mint($entity, $extra = NULL) {
-    // The resource's metadata must be registered via the DataCite MDS API
-    // first, then its URL. See https://datacite.readme.io/docs/mds-2 for
-    // additional info.
-    //
     // We will create a DOI using either the node's ID or its UUID,
     // depending on the value of this module's config setting doi_datacite_suffix_source.
     // We also provide the option to allow DataCite to autogenerate suffixes.
     // Docs are at https://support.datacite.org/docs/api-create-dois.
-    
+
+    global $base_url;
+
     if ($this->doi_suffix_source == 'id') {
       $suffix = $entity->id();
     }
     if ($this->doi_suffix_source == 'uuid') {
       $suffix = $entity->Uuid();
     }
-    // @question: what do we return to the persister?
-    // We'll probably need to parse the auto-assigned DOI out of the request response.
+    // @todo: We'll need to parse the auto-assigned DOI out of the request response.
     // See "Auto-generated DOI's" in https://support.datacite.org/docs/api-create-dois.
     if ($this->doi_suffix_source == 'auto') {
       $suffix = '';
     }
     $doi = $this->doi_prefix . $suffix;
 
-    // Generate DataCite XML for POSTing to DataCite API.
-    $templated = [
-      '#theme' => 'doi_datacite_metadata',
-      '#entity'  => $entity,
-      '#doi'  => $doi,
-    ];
-
-    if (!is_null($extra)) {
-      // Check to see if $extra is from the node edit form (i.e., it's
-      // a Drupal\Core\Form\FormState).
-      if (is_object($extra) && method_exists($extra, 'getValue')) {
-        $templated['#resource_type'] = $extra->getValue('doi_datacite_resource_type');
-      }
-
       // Check to see if $extra is from the Views Bulk Operations Action (i.e.,
       // it's an array).
-      if (is_array($extra)) {
+      // if (is_array($extra)) {
         // error_log("From action via minter: " . var_export($extra, true) . "\n", 3, '/home/vagrant/debug.log');
-        $templated['#resource_type'] = $extra['doi_datacite_resource_type'];
-        $templated['#creator'] = $extra['doi_datacite_ceator'];
-        $templated['#publication_year'] = $extra['doi_datacite_publication_year'];
-        $templated['#publisher'] = $extra['doi_datacite_publisher'];
+        // $templated['#resource_type'] = $extra['doi_datacite_resource_type'];
+        // $templated['#creator'] = $extra['doi_datacite_ceator'];
+        // $templated['#publication_year'] = $extra['doi_datacite_publication_year'];
+        // $templated['#publisher'] = $extra['doi_datacite_publisher'];
+      // }
+      // $datacite_xml = \Drupal::service('renderer')->render($templated);
+
+    // Check to see if $extra is from the node edit form (i.e., it's
+    // a Drupal\Core\Form\FormState).
+    if (is_object($extra) && method_exists($extra, 'getValue')) {
+      $creators = explode(';', $extra->getValue('doi_datacite_creator'));
+      $datacite_creators = [];
+      foreach ($creators as $creator) {
+        $datacite_creators[] = ['name' => $creator]; 
       }
-      $datacite_xml = \Drupal::service('renderer')->render($templated);
+      $datacite_array = [];
+      $datacite_titles = [];
+      $datacite_titles[] = ['title' => $entity->title->value];
+      $datacite_array['data']['id'] = $doi;
+      $datacite_array['data']['type'] = 'dois';
+      $attributes = [
+            'event' => 'publish',
+            'doi' => $doi,
+            'creators' => $datacite_creators,
+            'titles' => $datacite_titles,
+            'publisher' => $extra->getValue('doi_datacite_publisher'),
+            'publicationYear' => $extra->getValue('doi_datacite_publication_year'),
+            'types' => ['resourceTypeGeneral' => $extra->getValue('doi_datacite_resource_type')],
+            'url' => $base_url . '/node/' . $entity->id(),
+            'schemaVersion' => 'http://datacite.org/schema/kernel-4',
+      ];
+      $datacite_array['data']['attributes'] = $attributes;
+      // devel_debug(json_encode($datacite_array, JSON_PRETTY_PRINT));
     }
 
-    $success = $this->postToApi($doi, $datacite_xml);
+    $datacite_json = json_encode($datacite_array);
+    $success = $this->postToApi($doi, $datacite_json);
 
     return $doi;
   }
 
 
   /**
-   * POSTs DataCite REST API.
+   * POSTs to DataCite REST API to create and publish the DOI.
    *
    * @param string $doi
-   *   The DOI.
-   * @param string $datacite_xml
-   *   The DataCite XML.
+   *   The DOI identifier string.
+   * @param string $datacite_json
+   *   The DataCite JSON.
    *
    * @return bool
    *   TRUE if successful, FALSE if not.
    */
-  public function postToApi($doi, $datacite_xml) {
+  public function postToApi($doi, $datacite_json) {
     /*
      This is the simplest JSON we can post to create a DOI.
 {
@@ -167,6 +179,7 @@ class Dois implements MinterInterface {
     }
   }
 }
+
      */
 
     $response = \Drupal::httpClient()
@@ -178,9 +191,15 @@ class Dois implements MinterInterface {
            'Content-Type' => 'application/vnd.api+json',
         ],
     ]);
-    $response->getBody()->getContents();
+    $response_body = $response->getBody()->getContents();
+
+    // DataCite's API returns a 201 if the request was successful.
+    devel_debug($response>getStatusCode());
+    devel_debug($response_body);
 
     // DataCite's API returns a 404 when the user credentials or prefix are wrong, with the following body:
     // {"errors":[{"status":"404","title":"The resource you are looking for doesn't exist."}]}
+    // and something like this if there is an error with the JSON:
+    // {"errors":[{"status":"400","title":"You need to provide a payload following the JSONAPI spec"}]}
   }
 }

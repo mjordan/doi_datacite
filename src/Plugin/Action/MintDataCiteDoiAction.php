@@ -28,9 +28,9 @@ class MintDataCiteDoiAction extends ViewsBulkOperationsActionBase implements Vie
     $persister_id = \Drupal::config('persistent_identifiers.settings')->get('persistent_identifiers_persister');
     $persister = \Drupal::service($persister_id);
     // The values saved in this action's configuration form are in $this->configuration.
-    $identifier = $minter->mint($entity, $this->configuration);
-    $persister->persist($entity, $identifier);
-    $this->messenger()->addMessage('"' . $entity->label() . '" assigned the DOI ' . $identifier);
+    $doi_identifier = $minter->mint($entity, $this->configuration);
+    $persister->persist($entity, $doi_identifier);
+    $this->messenger()->addMessage('"' . $entity->label() . '" assigned the DOI ' . $doi_identifier);
   }
 
   /**

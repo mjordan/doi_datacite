@@ -81,7 +81,7 @@ function doi_datacite_form_alter(&$form, FormStateInterface &$form_state, $form_
       ],
     ];
 
-    $form['#submit'][] = 'doi_datacite_submit';
+    $form['#submit'][] = 'doi_datacite_admin_settings_submit';
   }
 }
 
@@ -117,7 +117,7 @@ function doi_datacite_form_node_form_alter(&$form, FormStateInterface $form_stat
         ],
        ];
       $form['doi_datacite_required_fields']['required_note'] = [
-        '#markup' => t('Note: All of these fields are required by DataCite.'),
+        '#markup' => t('Note: All of these fields are required by DataCite to mint a DOI. They do not duplicate existing metadata.'),
       ];     
       $form['doi_datacite_required_fields']['doi_datacite_resource_type'] = [
         '#type' => 'radios',
@@ -149,15 +149,16 @@ function doi_datacite_form_node_form_alter(&$form, FormStateInterface $form_stat
 /**
  * Submit callback.
  *
- * Saves the value of the minter-specific field defined in the implementation
- * of hook_form_alter() above.
+ * Saves the value of the minter-specific admin options configured
+ * in the implementation of hook_form_alter() for
+ * persistent_identifiers_admin_settings' `above.
  *
  * @param array $form
  *   The form.
  * @param \Drupal\Core\Form\FormStateInterface $form_state
  *   The form state.
  */
-function doi_datacite_submit(array &$form, FormStateInterface $form_state) {
+function doi_datacite_admin_settings_submit(array &$form, FormStateInterface $form_state) {
   $minter = Drupal::config('persistent_identifiers.settings')->get('persistent_identifiers_minter');
   if ($minter == 'doi_datacite.minter.datacitedois') {
     $endpoint = trim($form_state->getValue('doi_datacite_api_endpoint'));
@@ -190,8 +191,8 @@ function doi_datacite_check_for_required_datacite_elements(array $form, FormStat
   if (\Drupal::currentUser()->hasPermission('mint persistent identifiers')) {
     // We only want to validate these elements if the "Mint DataCite DOI" checkbox is checked.
     if ($form_state->getValue('mint_and_persist') == 1) {
-      $minter = Drupal::config('persistent_identifiers.settings')->get('persistent_identifiers_minter');
-      if ($minter == 'doi_datacite.minter.datacitedois') {
+      $minter_id = Drupal::config('persistent_identifiers.settings')->get('persistent_identifiers_minter');
+      if ($minter_id == 'doi_datacite.minter.datacitedois') {
 	// DataCite resource type.
         if (empty($form_state->getValue('doi_datacite_resource_type'))) {
           $form_state->setErrorByName('doi_datacite_resource_type', t('You must choose a DataCite resource type.'));
