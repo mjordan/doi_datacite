@@ -89,12 +89,7 @@ class Dois implements MinterInterface {
     if ($this->doi_suffix_source == 'uuid') {
       $suffix = $entity->Uuid();
     }
-    // @todo: We'll need to parse the auto-assigned DOI out of the request response.
-    // See "Auto-generated DOI's" in https://support.datacite.org/docs/api-create-dois.
-    if ($this->doi_suffix_source == 'auto') {
-      $suffix = '';
-    }
-    $doi = $this->doi_prefix . $suffix;
+    $doi = $this->doi_prefix . '/' . $suffix;
 
       // Check to see if $extra is from the Views Bulk Operations Action (i.e.,
       // it's an array).
@@ -113,16 +108,17 @@ class Dois implements MinterInterface {
       $creators = explode(';', $extra->getValue('doi_datacite_creator'));
       $datacite_creators = [];
       foreach ($creators as $creator) {
-        $datacite_creators[] = ['name' => $creator]; 
+        $datacite_creators[] = ['name' => trim($creator)]; 
       }
       $datacite_array = [];
       $datacite_titles = [];
       $datacite_titles[] = ['title' => $entity->title->value];
-      $datacite_array['data']['id'] = $doi;
+      // $datacite_array['data']['id'] = $doi;
       $datacite_array['data']['type'] = 'dois';
       $attributes = [
             'event' => 'publish',
-            'doi' => $doi,
+            // 'doi' => $doi,
+            // 'prefix' => $this->doi_prefix,
             'creators' => $datacite_creators,
             'titles' => $datacite_titles,
             'publisher' => $extra->getValue('doi_datacite_publisher'),
@@ -132,28 +128,34 @@ class Dois implements MinterInterface {
             'schemaVersion' => 'http://datacite.org/schema/kernel-4',
       ];
       $datacite_array['data']['attributes'] = $attributes;
-      // devel_debug(json_encode($datacite_array, JSON_PRETTY_PRINT));
+
+      if ($this->doi_suffix_source == 'auto') {
+        $datacite_array['data']['attributes']['prefix'] = $this->doi_prefix;
+      }
+      else {
+        $datacite_array['data']['id'] = $doi;
+        $datacite_array['data']['attributes']['doi'] = $doi;
+      }
     }
 
     $datacite_json = json_encode($datacite_array);
-    $success = $this->postToApi($doi, $datacite_json);
-
-    return $doi;
+    devel_debug(json_decode($datacite_json));
+    $minted_doi = $this->postToApi($datacite_json);
+    devel_debug($minted_doi);
+    return $minted_doi;
   }
 
 
   /**
    * POSTs to DataCite REST API to create and publish the DOI.
    *
-   * @param string $doi
-   *   The DOI identifier string.
    * @param string $datacite_json
    *   The DataCite JSON.
    *
-   * @return bool
-   *   TRUE if successful, FALSE if not.
+   * @return string|bool
+   *   The DOI string if successful, FALSE if not.
    */
-  public function postToApi($doi, $datacite_json) {
+  public function postToApi($datacite_json) {
     /*
      This is the simplest JSON we can post to create a DOI.
 {
@@ -182,8 +184,7 @@ class Dois implements MinterInterface {
 
      */
 
-    $response = \Drupal::httpClient()
-      ->post($this->api_endpoint, [
+    $response = \Drupal::httpClient()->post($this->api_endpoint, [
         'auth' => [$this->api_username, $this->api_password],
         'body' => $datacite_json,
         'http_errors' => FALSE,
@@ -191,15 +192,26 @@ class Dois implements MinterInterface {
            'Content-Type' => 'application/vnd.api+json',
         ],
     ]);
-    $response_body = $response->getBody()->getContents();
 
     // DataCite's API returns a 201 if the request was successful.
-    devel_debug($response>getStatusCode());
-    devel_debug($response_body);
+    devel_debug($response->getStatusCode(), 'Response code');
+
+    if ($response->getStatusCode() == 201) {
+      $response_body_array = json_decode($response->getBody()->getContents(), TRUE);
+      devel_debug($response_body_array, 'Body content within 201');
+      $doi = $response_body_array['data']['attributes']['doi'];
+      devel_debug($doi, 'DOI within 201');
+      return $doi;
+    }
+    else {
+      devel_debug(json_decode($response->getBody()->getContents(), TRUE), 'Body content non-201');
+    }
 
     // DataCite's API returns a 404 when the user credentials or prefix are wrong, with the following body:
     // {"errors":[{"status":"404","title":"The resource you are looking for doesn't exist."}]}
     // and something like this if there is an error with the JSON:
     // {"errors":[{"status":"400","title":"You need to provide a payload following the JSONAPI spec"}]}
+    //
+    // {"errors":[{"status":"422","title":"This DOI has already been taken"}]}
   }
 }
