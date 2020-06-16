@@ -29,17 +29,13 @@ Two ways:
 
 The Views Bulk Operations method currently requires that all nodes in the batch have the same creator(s), publisher, publication year, and DataCite resource type.
 
-## Specifying DataCite resource types
+## Adding DataCite-specific metadata
 
-DataCite requires the use of a controlled vocabulary of resource types. This module adds this list to the node edit form, e.g.:
+DataCite requires the use of a controlled vocabulary of resource types and has a small number of requied elements. This module adds those to the node add/edit form, e.g.:
 
-![DataCite resource types](docs/images/datacite_resource_types.png)
+![DataCite resource types](docs/images/datacite_metadata.png)
 
-This list will appear along with other DataCite-specific form elements if the user checks the "Mint DataCite DOI" box. Note that the items selected from this list are not persisted to the node, which means that every time a user mints a new DOI for the node, they must reselect the resource type. This is not optimal, but since DOIs are generally only minted once, not storing this data is preferable to adding a field to the content type of store it in.
-
-## Altering the DataCite Metadata XML
-
-In order to mint a DOI from DataCite, you must provide metadata for the resource using the [DataCite Metadata Schema or the Publication and Citation of Research Data](https://schema.datacite.org/meta/kernel-4.3/doc/DataCite-MetadataKernel_v4.3.pdf) (the schema applies to all resources, not just research data sets). This module comes with a minimalist implementation of that metadata XML. If you want to change or enhance the metadata XML, you can do so using standard Drupal theming techniques.
+This form elements will appear when the user checks the "Mint DataCite DOI" box. Note that this data is not persisted to the node, which means that every time a user mints a new DOI for the node, they must reselect the resource type. This is not optimal, but since DOIs are generally only minted once, not storing this data is preferable to adding a field to the content type of store it in.
 
 ## Current maintainer
 
