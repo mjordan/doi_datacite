@@ -4,6 +4,7 @@ namespace Drupal\doi_datacite\Minter;
 
 use Drupal\persistent_identifiers\MinterInterface;
 use Drupal\Core\Url;
+use Drupal\Component\Utility\Html;
 
 /**
  * DataCite DOI minter.
@@ -70,18 +71,18 @@ class Dois implements MinterInterface {
    * @param object $entity
    *   The node, etc.
    * @param mixed $extra
-   *   The node edit form state or data form Views Bulk Operations action.
+   *   The node edit form state or data from the Views Bulk Operations action.
    *
-   * @return string
+   * @return string|NULL;
    *   The DOI that will be saved in the persister's designated field.
+   *   NULL if there was an error POSTing to the API.
    */
   public function mint($entity, $extra = NULL) {
-    // We will create a DOI using either the node's ID or its UUID,
-    // depending on the value of this module's config setting doi_datacite_suffix_source.
-    // We also provide the option to allow DataCite to autogenerate suffixes.
-    // Docs are at https://support.datacite.org/docs/api-create-dois.
-
     global $base_url;
+    // This minter needs $extra.
+    if (is_null($extra)) {
+      return NULL;
+    }
 
     if ($this->doi_suffix_source == 'id') {
       $suffix = $entity->id();
@@ -91,34 +92,45 @@ class Dois implements MinterInterface {
     }
     $doi = $this->doi_prefix . '/' . $suffix;
 
-      // Check to see if $extra is from the Views Bulk Operations Action (i.e.,
-      // it's an array).
-      // if (is_array($extra)) {
-        // error_log("From action via minter: " . var_export($extra, true) . "\n", 3, '/home/vagrant/debug.log');
-        // $templated['#resource_type'] = $extra['doi_datacite_resource_type'];
-        // $templated['#creator'] = $extra['doi_datacite_ceator'];
-        // $templated['#publication_year'] = $extra['doi_datacite_publication_year'];
-        // $templated['#publisher'] = $extra['doi_datacite_publisher'];
-      // }
-      // $datacite_xml = \Drupal::service('renderer')->render($templated);
+    // If $extra is from the Views Bulk Operations Action
+    // (i.e., it's an array).
+    if (is_array($extra)) {
+      $datacite_array = [];
+      $creators = explode(';', $extra['doi_datacite_creator']);
+      $datacite_creators = [];
+      foreach ($creators as $creator) {
+        $datacite_creators[] = ['name' => trim($creator)]; 
+      }
+      $datacite_titles = [];
+      $datacite_titles[] = ['title' => $entity->title->value];
+      $datacite_array['data']['type'] = 'dois';
+      $attributes = [
+            'event' => 'publish',
+            'creators' => $datacite_creators,
+            'titles' => $datacite_titles,
+            'publisher' => $extra['doi_datacite_publisher'],
+            'publicationYear' => $extra['doi_datacite_publication_year'],
+            'types' => ['resourceTypeGeneral' => $extra['doi_datacite_resource_type']],
+            'url' => $base_url . '/node/' . $entity->id(),
+            'schemaVersion' => 'http://datacite.org/schema/kernel-4',
+      ];
+      $datacite_array['data']['attributes'] = $attributes;
+    }
 
-    // Check to see if $extra is from the node edit form (i.e., it's
-    // a Drupal\Core\Form\FormState).
+    // If $extra is from the node edit form (i.e., it's an instance of
+    // Drupal\Core\Form\FormState).
     if (is_object($extra) && method_exists($extra, 'getValue')) {
+      $datacite_array = [];
       $creators = explode(';', $extra->getValue('doi_datacite_creator'));
       $datacite_creators = [];
       foreach ($creators as $creator) {
         $datacite_creators[] = ['name' => trim($creator)]; 
       }
-      $datacite_array = [];
       $datacite_titles = [];
       $datacite_titles[] = ['title' => $entity->title->value];
-      // $datacite_array['data']['id'] = $doi;
       $datacite_array['data']['type'] = 'dois';
       $attributes = [
             'event' => 'publish',
-            // 'doi' => $doi,
-            // 'prefix' => $this->doi_prefix,
             'creators' => $datacite_creators,
             'titles' => $datacite_titles,
             'publisher' => $extra->getValue('doi_datacite_publisher'),
@@ -128,20 +140,19 @@ class Dois implements MinterInterface {
             'schemaVersion' => 'http://datacite.org/schema/kernel-4',
       ];
       $datacite_array['data']['attributes'] = $attributes;
+    }
 
-      if ($this->doi_suffix_source == 'auto') {
-        $datacite_array['data']['attributes']['prefix'] = $this->doi_prefix;
-      }
-      else {
-        $datacite_array['data']['id'] = $doi;
-        $datacite_array['data']['attributes']['doi'] = $doi;
-      }
+    if ($this->doi_suffix_source == 'auto') {
+      $datacite_array['data']['attributes']['prefix'] = $this->doi_prefix;
+    }
+    else {
+      $datacite_array['data']['id'] = $doi;
+      $datacite_array['data']['attributes']['doi'] = $doi;
     }
 
     $datacite_json = json_encode($datacite_array);
-    devel_debug(json_decode($datacite_json));
-    $minted_doi = $this->postToApi($datacite_json);
-    devel_debug($minted_doi);
+
+    $minted_doi = $this->postToApi($entity->id(), $datacite_json);
     return $minted_doi;
   }
 
@@ -149,41 +160,16 @@ class Dois implements MinterInterface {
   /**
    * POSTs to DataCite REST API to create and publish the DOI.
    *
+   * @param int $nid
+   *   The node ID.
    * @param string $datacite_json
-   *   The DataCite JSON.
+   *   The DataCite JSON. See https://support.datacite.org/docs/api-create-dois
+   *   for more information.
    *
-   * @return string|bool
-   *   The DOI string if successful, FALSE if not.
+   * @return string|NULL
+   *   The DOI string if successful, NULL if not.
    */
-  public function postToApi($datacite_json) {
-    /*
-     This is the simplest JSON we can post to create a DOI.
-{
-  "data": {
-    "id": "10.80484/9e99eef6-07e5-4726-b59b-0008da534aa3",
-    "type": "dois",
-    "attributes": {
-      "event": "publish",
-      "doi": "10.80484/8e99eef6-07e5-4726-b59b-0008da534aa3",
-      "creators": [{
-        "name": "Jordan, Mark J."
-      }],
-      "titles": [{
-        "title": "SFU Library website"
-      }],
-      "publisher": "SFU Library",
-      "publicationYear": 2020,
-      "types": {
-        "resourceTypeGeneral": "Text"
-      },
-      "url": "https://www.lib.sfu.ca",
-      "schemaVersion": "http://datacite.org/schema/kernel-4"
-    }
-  }
-}
-
-     */
-
+  public function postToApi($nid, $datacite_json) {
     $response = \Drupal::httpClient()->post($this->api_endpoint, [
         'auth' => [$this->api_username, $this->api_password],
         'body' => $datacite_json,
@@ -193,25 +179,36 @@ class Dois implements MinterInterface {
         ],
     ]);
 
+    $http_code = $response->getStatusCode();
     // DataCite's API returns a 201 if the request was successful.
-    devel_debug($response->getStatusCode(), 'Response code');
-
-    if ($response->getStatusCode() == 201) {
+    if ($http_code == 201) {
       $response_body_array = json_decode($response->getBody()->getContents(), TRUE);
-      devel_debug($response_body_array, 'Body content within 201');
       $doi = $response_body_array['data']['attributes']['doi'];
-      devel_debug($doi, 'DOI within 201');
       return $doi;
     }
     else {
-      devel_debug(json_decode($response->getBody()->getContents(), TRUE), 'Body content non-201');
-    }
+      switch ($http_code) {
+        case 404:
+	  $hint = ' Hint: Check your repository ID, DOI prefix, and/or password.';
+	  break;
+        case 400:
+	  $hint = ' Hint: The JSON being sent to DataCite may be invalid (' . $datacite_json . ').';
+	  break;
+        case 422:
+	  $hint = '';
+	  break;
+        default:
+	  $hint = '';
+      }
 
-    // DataCite's API returns a 404 when the user credentials or prefix are wrong, with the following body:
-    // {"errors":[{"status":"404","title":"The resource you are looking for doesn't exist."}]}
-    // and something like this if there is an error with the JSON:
-    // {"errors":[{"status":"400","title":"You need to provide a payload following the JSONAPI spec"}]}
-    //
-    // {"errors":[{"status":"422","title":"This DOI has already been taken"}]}
+      \Drupal::logger('doi_datacite')->warning(t("While minting DOI for node @nid, the DataCite API returned @code status with the message '@message' @hint", [
+        '@nid' => $nid,
+        '@code' => $http_code,
+        '@message' => $response->getBody()->getContents(),
+        '@hint' => $hint,
+      ]));
+
+      return NULL;
+    }
   }
 }

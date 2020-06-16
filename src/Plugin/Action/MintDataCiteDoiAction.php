@@ -29,8 +29,13 @@ class MintDataCiteDoiAction extends ViewsBulkOperationsActionBase implements Vie
     $persister = \Drupal::service($persister_id);
     // The values saved in this action's configuration form are in $this->configuration.
     $doi_identifier = $minter->mint($entity, $this->configuration);
-    $persister->persist($entity, $doi_identifier);
-    $this->messenger()->addMessage('"' . $entity->label() . '" assigned the DOI ' . $doi_identifier);
+    if (strlen($doi_identifier)) {
+      $persister->persist($entity, $doi_identifier);
+      $this->messenger()->addMessage('"' . $entity->label() . '" assigned the DOI ' . $doi_identifier);
+    }
+    else {
+      $this->messenger()->addMessage('"' . $entity->label() . '" (node ' . $entity->id() . ') not assigned a DOI. See system log for details.');
+    }
   }
 
   /**
@@ -57,7 +62,7 @@ class MintDataCiteDoiAction extends ViewsBulkOperationsActionBase implements Vie
     $form['doi_datacite_resource_type'] = [
       '#type' => 'radios',
       '#options' => $resource_type_values,
-      '#title' => t("DataCite resource types"),
+      '#title' => t("DataCite resource type"),
       '#required' => TRUE,
       '#description' => t("Metadata submitted to DataCite requires one of these " .
       "resource types."),
@@ -66,21 +71,19 @@ class MintDataCiteDoiAction extends ViewsBulkOperationsActionBase implements Vie
       '#title' => t('Creator'),
       '#type' => 'textfield',
       '#required' => TRUE,
-      '#description' => t("Separate repeated values with semicolons. " .
-        "This will only be used if node has no creators."),
+      '#description' => t("Separate repeated values with semicolons."),
     ];
     $form['doi_datacite_publication_year'] = [
       '#title' => t('Publication year'),
       '#type' => 'textfield',
       '#required' => TRUE,
       '#description' => t("Must be in YYYY format. Note that this value is not validated " .
-        "so double check it. This will only be used if a node has no publication date."),
+        "so double check it."),
     ];
     $form['doi_datacite_publisher'] = [
       '#title' => t('Publisher'),
       '#type' => 'textfield',
       '#required' => TRUE,
-      '#description' => t("This will only be used if a node has no publisher."),
     ];
     return $form;
   }
@@ -104,17 +107,6 @@ class MintDataCiteDoiAction extends ViewsBulkOperationsActionBase implements Vie
    * {@inheritdoc}
    */
   public function access($object, AccountInterface $account = NULL, $return_as_object = FALSE) {
-    /* 
-     * @todo: 'hasPermision' call is resulting in an access denied when I execute the action.
-    if ($object->getEntityType() === 'node') {
-      $access = $object->access('update', $account, TRUE)
-        ->andIf($object->status->access('edit', $account, TRUE))
-        ->andIf(\Drupal::currentUser()->hasPermission('mint persistent identifiers'));
-      return $return_as_object ? $access : $access->isAllowed();
-    }
-    */
-
-    return TRUE;
+    return $object->access('mint persistent identifiers', $account, $return_as_object);
   }
-
 }
