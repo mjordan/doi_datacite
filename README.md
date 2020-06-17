@@ -1,3 +1,5 @@
+> Note: This module is now bundled with https://github.com/mjordan/persistent_identifiers. Please use that GitHub repository.
+
 # DataCite DOI Minter
 
 ## Introduction
